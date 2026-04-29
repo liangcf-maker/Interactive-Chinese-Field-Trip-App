@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>中環中文科實地考察 - 完整版</title>
+    <!-- 引入圖標 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入煙花特效 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- 引入 Hanzi Writer (用於筆順練習) -->
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #FFFDD0; 
+            --primary: #0056b3;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --text: #222;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: "Microsoft JhengHei", sans-serif;
+            font-size: 24px; 
+            line-height: 1.8;
+            letter-spacing: 0.1em;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .progress-box {
+            position: sticky; top: 10px; z-index: 100;
+            background: #eee; border-radius: 20px; height: 35px;
+            width: 100%; margin-bottom: 30px; border: 2px solid #ccc;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #progressBar {
+            height: 100%; width: 0%; background: var(--success);
+            border-radius: 20px; transition: width 0.6s ease;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
+
+        .card {
+            background: white; border-radius: 20px; padding: 25px;
+            margin-bottom: 40px; border: 4px solid #ddd;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+
+        h2 { border-bottom: 3px solid var(--primary); padding-bottom: 10px; }
+        h3 { color: var(--primary); margin-top: 30px; border-left: 5px solid var(--success); padding-left: 15px; }
+
+        button {
+            background: var(--primary); color: white; border: none;
+            padding: 15px 25px; border-radius: 12px; cursor: pointer;
+            font-size: 20px; margin: 10px 5px; display: inline-flex;
+            align-items: center; justify-content: center; gap: 10px; transition: 0.3s; flex-wrap: wrap;
+        }
+        button:hover { filter: brightness(1.2); transform: scale(1.02); }
+        button:disabled { background: #888; cursor: not-allowed; }
+        .btn-en { font-size: 14px; display: block; opacity: 0.9; width: 100%; text-align: center; }
+        .btn-sm { padding: 8px 12px; font-size: 16px; margin: 0 0 0 10px; border-radius: 8px; width: auto; background: #17a2b8;}
+
+        /* 第一站：畫布與狀態 */
+        #canvas-wrapper { position: relative; width: 100%; margin-top: 15px; }
+        #photoCanvas { border: 3px dashed #666; background: #fff; width: 100%; touch-action: none; cursor: crosshair; }
+        
+        .ai-badge { background: #6f42c1; color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px; vertical-align: middle; }
+        .vocab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 10px; }
+        .vocab-item { background: #f0f7ff; padding: 10px; border-radius: 8px; text-align: center; border: 2px solid #bcd; font-weight: bold; }
+        
+        /* 第二站：第一部分詞彙庫 */
+        .contrast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
+        .contrast-btn { background: #fff; border: 3px solid var(--primary); color: var(--primary); font-weight: bold; padding: 20px; border-radius: 15px; text-align: center; cursor: pointer; font-size: 28px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
+        .contrast-btn:hover { background: var(--primary); color: #fff; }
+
+        /* 第二站：第二部分對比框 */
+        .compare-container { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+        .compare-box { flex: 1; min-width: 280px; background: #f8f9fa; border: 3px solid #ccc; border-radius: 15px; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        .photo-area { width: 100%; height: 200px; background: #e9ecef; border: 2px dashed #999; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; overflow: hidden; position: relative; }
+        .photo-area img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .photo-area button { position: absolute; z-index: 10; margin: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .drop-zone { width: 100%; min-height: 80px; border: 3px dashed var(--primary); background: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666; cursor: pointer; transition: 0.3s; flex-wrap: wrap; gap: 10px; padding: 10px; box-sizing: border-box; }
+        .drop-zone.highlight { background: #e6f2ff; border-color: #004085; transform: scale(1.02); }
+
+        .word-pool { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 25px; padding: 20px; background: #eef; border-radius: 15px; }
+        .word-pill { background: #fff; border: 3px solid var(--primary); color: var(--primary); padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 22px; cursor: pointer; transition: 0.3s; box-shadow: 0 3px 5px rgba(0,0,0,0.1); }
+        .word-pill.selected { background: var(--primary); color: #fff; transform: scale(1.1); box-shadow: 0 5px 15px rgba(0,86,179,0.4); }
+
+        /* 第二站：第三部分 造句框架 */
+        .framework-box { background: #e6f7ff; padding: 25px; border-radius: 15px; border: 3px solid #17a2b8; position: relative; margin-top: 20px; }
+        .framework-text { font-size: 26px; color: #0056b3; line-height: 2.2; font-weight: bold; }
+        .blank-line { display: inline-block; width: 60px; border-bottom: 3px solid #000; margin: 0 5px; vertical-align: bottom; }
+        .input-area-wrapper { display: flex; gap: 15px; margin-top: 20px; align-items: stretch; flex-wrap: wrap; }
+        #sentenceInput { flex: 1; min-width: 250px; border-radius: 15px; border: 3px solid #ccc; padding: 20px; font-size: 24px; font-family: inherit; resize: vertical; line-height: 1.5; outline: none; transition: 0.3s; }
+        #sentenceInput:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(0,86,179,0.2); }
+        .btn-dictate { background: #e83e8c; margin: 0; padding: 20px 30px; border-radius: 15px; display: flex; flex-direction: column; justify-content: center; }
+        .btn-dictate:hover { background: #d81b60; }
+        .btn-dictate.listening { background: #dc3545; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* 第三站 第一部分：形音字表格 */
+        .table-responsive { overflow-x: auto; margin-top: 20px; }
+        .phonetic-table { width: 100%; border-collapse: collapse; min-width: 600px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .phonetic-table th, .phonetic-table td { border: 2px solid #ccc; padding: 15px; text-align: left; vertical-align: middle; }
+        .phonetic-table th { background: #eef; color: var(--primary); text-align: center; font-size: 22px; }
+        .phonetic-table td { font-size: 20px; line-height: 1.5; }
+        .phonetic-table .radical { text-align: center; font-size: 32px; font-weight: bold; color: #d32f2f; }
+        .phonetic-table .sound-cell { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .phonetic-table .target-word { font-size: 32px; font-weight: bold; color: var(--primary); }
+
+        /* 第三站 第二部分：畫線連線遊戲 */
+        .match-game-container {
+            display: flex; justify-content: space-between; position: relative; width: 100%; min-height: 500px;
+            margin-top: 20px; background: #fdfdfd; border: 3px dashed #bbb; border-radius: 15px; padding: 20px 10px; box-sizing: border-box; touch-action: none;
+        }
+        #linkCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        .match-col { display: flex; flex-direction: column; justify-content: space-around; width: 30%; z-index: 15; position: relative; gap: 10px;}
+        .match-item { background: white; border: 3px solid #ccc; border-radius: 10px; padding: 15px 10px; text-align: center; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: center; flex-direction: column; min-height: 70px; }
+        .match-item.col1 { background: #ffebee; font-size: 32px; font-weight: bold; border-color: #ffcdd2; color: #c62828; }
+        .match-item.col2 { background: #fff8e1; font-size: 18px; border-color: #ffecb3; color: #f57f17; font-weight: bold;}
+        .match-item.col3 { background: #e3f2fd; font-size: 20px; border-color: #bbdefb; color: #1565c0; font-weight: bold;}
+        .match-item.matched { opacity: 0.8; box-shadow: inset 0 0 10px rgba(0,255,0,0.2); border-color: #28a745; }
+        .emoji-img { font-size: 35px; margin-bottom: 5px; }
+        .anchor-dot { width: 24px; height: 24px; background: #fff; border: 4px solid var(--primary); border-radius: 50%; position: absolute; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 4px rgba(0,0,0,0.3); pointer-events: auto; z-index: 20; transition: transform 0.2s; }
+        .anchor-dot:hover, .anchor-dot.active { transform: translateY(-50%) scale(1.3); background: var(--success); border-color: #fff; }
+        .dot-right { right: -14px; } .dot-left { left: -14px; }
+
+        /* 第三站 第三部分：創意特餐設計 */
+        .food-pool-area { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: #fdfdfd; padding: 15px; border-radius: 15px; border: 2px solid #eee; }
+        .food-pool-title { width: 100%; font-size: 20px; font-weight: bold; color: var(--primary); margin: 0 0 10px 0; border-bottom: 2px solid #ccc; padding-bottom: 5px; }
+        
+        .food-item { 
+            background: #fff; border: 2px solid #aaa; border-radius: 10px; padding: 8px 15px; font-size: 20px; cursor: pointer;
+            display: inline-flex; flex-direction: column; align-items: center; justify-content: center; user-select: none;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.1); transition: 0.2s; cursor: grab;
+        }
+        .food-item:hover { transform: scale(1.05); border-color: var(--primary); box-shadow: 0 5px 10px rgba(0,86,179,0.2); }
+        .food-item:active { cursor: grabbing; }
+        .food-item .emoji { font-size: 30px; }
+        .food-item.method { flex-direction: row; font-weight: bold; color: white; background: #17a2b8; border-color: #117a8b; }
+        
+        .creation-area { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; }
+        .plate-zone { 
+            background: #e9ecef; border: 4px dashed #999; border-radius: 50%; width: 100%; max-width: 350px; height: 350px;
+            margin: 0 auto; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; align-content: center; gap: 5px;
+            position: relative; transition: 0.3s;
+        }
+        .plate-zone.dragover { background: #d4edda; border-color: var(--success); }
+        .plate-zone::before { content: "點擊或拖放食材到餐盤"; position: absolute; color: #888; font-size: 22px; z-index: 1; text-align: center; pointer-events: none; }
+        .plate-zone.has-items::before { display: none; }
+        
+        .plate-item { position: relative; z-index: 2; font-size: 40px; animation: popIn 0.3s ease-out; }
+        .plate-item .remove-btn { 
+            position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 20px; height: 20px;
+            font-size: 14px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-family: Arial; font-weight: bold;
+        }
+        @keyframes popIn { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+        .name-builder-zone { background: #fff3cd; border: 3px solid #ffeeba; padding: 20px; border-radius: 15px; }
+        .final-name-input { width: 100%; padding: 15px; font-size: 28px; font-weight: bold; text-align: center; border: 3px solid var(--primary); border-radius: 10px; color: #b30000; box-sizing: border-box; font-family: inherit; }
+        
+        /* 特餐卡片生成 */
+        .special-meal-card { 
+            display: none; background: #fff; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden;
+            margin-top: 30px; position: relative; border: 5px solid #28a745; text-align: center; padding-bottom: 20px;
+        }
+        .card-header { background: #28a745; color: white; padding: 15px; font-size: 28px; font-weight: bold; letter-spacing: 2px;}
+        .card-visual { padding: 40px 20px; background: #fafafa; min-height: 150px; display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; font-size: 60px; border-bottom: 3px dashed #eee;}
+        .card-price-tag { display: inline-block; background: #ffc107; border: 3px solid #d39e00; border-radius: 10px; padding: 10px 20px; font-size: 30px; font-weight: bold; color: #856404; margin-top: 20px; transform: rotate(-3deg); box-shadow: 2px 2px 5px rgba(0,0,0,0.1);}
+        .card-price-tag input { background: transparent; border: none; border-bottom: 2px solid #856404; color: #856404; font-size: 30px; font-weight: bold; width: 80px; text-align: center; outline: none; }
+
+        /* 彈出視窗 (Modal) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: var(--bg-color); border: 4px solid var(--primary); border-radius: 20px; padding: 30px; width: 90%; max-width: 500px; text-align: center; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+        .modal-title { font-size: 40px; color: var(--primary); margin: 0 0 10px 0; font-weight: bold; }
+        .modal-en { font-size: 20px; color: #555; margin-bottom: 20px; }
+        #hanziContainer { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; background: #fff; padding: 15px; border-radius: 10px; border: 2px dashed #ccc; }
+
+        /* 第四站 */
+        .survey-table { width: 100%; border-collapse: collapse; }
+        .survey-table td, .survey-table th { padding: 15px; border: 2px solid #ddd; font-size: 18px; }
+        .survey-table th { background: #f8f8f8; }
+        .opt-btn { width: 100%; background: #eee; color: #333; font-size: 16px; margin: 5px 0; border: 2px solid transparent;}
+        .opt-btn.selected { background: var(--primary); color: white; border-color: #004085; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><i class="fas fa-graduation-cap"></i> 語文實地考察：中上環篇</h1>
+    
+    <div class="progress-box">
+        <div id="progressBar">0%</div>
+    </div>
+
+    <!-- 第一站 -->
+    <div class="card" id="st1">
+        <h2>📍 第一站：海味街 (部首偵探) <span class="ai-badge"><i class="fas fa-bullseye"></i> 互動識別</span></h2>
+        <p><strong>Step 1:</strong> 上傳招牌照片，並用手指圈出含有「魚」、「艸」、「火」部首的文字。<br><span class="btn-en">Upload & Circle the target Radicals</span></p>
+        
+        <input type="file" id="upload" accept="image/*" style="display:none">
+        <button id="btnUpload" onclick="document.getElementById('upload').click()">
+            <i class="fas fa-camera"></i> 開始拍照 <span class="btn-en">Start Camera</span>
+        </button>
+
+        <div id="canvas-wrapper">
+            <canvas id="photoCanvas" style="display:none;"></canvas>
+        </div>
+
+        <div id="st1-actions" style="display:none; margin-top: 15px;">
+            <p style="font-size: 16px; color: #555;">(如果圈不出來，可以點擊下方按鈕查看答案)</p>
+            <button onclick="showAnswer1()"><i class="fas fa-search"></i> 判斷答案 <span class="btn-en">Check Answer</span></button>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/HK_Sheung_Wan_Des_Voeux_Road_West_sign.jpg/800px-HK_Sheung_Wan_Des_Voeux_Road_West_sign.jpg" id="ansImg" style="display:none; width:100%; margin:15px 0; border: 4px solid var(--success); border-radius: 10px;" alt="標準答案" onerror="this.src='https://via.placeholder.com/800x400?text=海味街照片(圖片失效)'">
+            
+            <div id="learningContent" style="display:none">
+                <hr>
+                <div class="radical-card">
+                    <button onclick="speak('魚部，與魚類或水中生物有關。海味街常見詞語有：鮮、鮑、魷、鯊、鯉。')"><i class="fas fa-volume-up"></i> 魚 (Fish)</button>
+                    <div class="vocab-grid">
+                        <div class="vocab-item">鮮 (Fresh)</div><div class="vocab-item">鮑 (Abalone)</div>
+                        <div class="vocab-item">魷 (Squid)</div><div class="vocab-item">鯊 (Shark)</div><div class="vocab-item">鯉 (Carp)</div>
+                    </div>
+                </div>
+                <div class="radical-card" style="margin-top:20px">
+                    <button onclick="speak('艸部，與植物或草本有關。海味街常見詞語有：菇、茸、藥、茶、花。')"><i class="fas fa-volume-up"></i> 艸 (Grass)</button>
+                    <div class="vocab-grid">
+                        <div class="vocab-item">菇 (Mushroom)</div><div class="vocab-item">茸 (Antler/Fungus)</div>
+                        <div class="vocab-item">藥 (Medicine)</div><div class="vocab-item">茶 (Tea)</div><div class="vocab-item">花 (Flower/Maw)</div>
+                    </div>
+                </div>
+                <div class="radical-card" style="margin-top:20px">
+                    <button onclick="speak('火部，與火、熱力或烹飪有關。常見詞語有：炒、煲、煮、燒、烤。')"><i class="fas fa-volume-up"></i> 火 (Fire)</button>
+                    <div class="vocab-grid">
+                        <div class="vocab-item">炒 (Stir-fry)</div><div class="vocab-item">煲 (Boil/Pot)</div>
+                        <div class="vocab-item">煮 (Cook)</div><div class="vocab-item">燒 (Roast)</div><div class="vocab-item">烤 (Grill)</div>
+                    </div>
+                </div>
+                <button onclick="completeStep(1, 25)" style="background:var(--success); margin-top:20px; width: 100%;">
+                    完成第一站 <span class="btn-en">Complete Station 1</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二站 -->
+    <div class="card" id="st2">
+        <h2>📍 第二站：電車之旅</h2>
+        <p><strong>第一部分 Part 1：對比詞彙庫</strong></p>
+        <div class="contrast-grid">
+            <div class="contrast-btn" onclick="openModal('高')">高</div><div class="contrast-btn" onclick="openModal('矮')">矮</div>
+            <div class="contrast-btn" onclick="openModal('新')">新</div><div class="contrast-btn" onclick="openModal('舊')">舊</div>
+            <div class="contrast-btn" onclick="openModal('闊')">闊</div><div class="contrast-btn" onclick="openModal('窄')">窄</div>
+            <div class="contrast-btn" onclick="openModal('有設計感')" style="font-size:22px;">有設計感</div><div class="contrast-btn" onclick="openModal('懷舊的')">懷舊的</div>
+        </div>
+        <hr style="margin: 40px 0; border-top: 3px dashed #ccc;">
+        <p><strong>第二部分 Part 2：不一樣的風景</strong></p>
+        <input type="file" id="camLeft" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(this, 'imgLeft', 'btnLeft')">
+        <input type="file" id="camRight" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(this, 'imgRight', 'btnRight')">
+        <div class="compare-container">
+            <div class="compare-box">
+                <div class="photo-area">
+                    <button id="btnLeft" onclick="document.getElementById('camLeft').click()"><i class="fas fa-camera"></i> 拍照</button>
+                    <img id="imgLeft" src="" alt="左邊照片">
+                </div>
+                <div class="drop-zone" id="zoneLeft" onclick="placeWord(this)"><i class="fas fa-hand-pointer"></i> 點擊放置詞語</div>
+            </div>
+            <div class="compare-box">
+                <div class="photo-area">
+                    <button id="btnRight" onclick="document.getElementById('camRight').click()"><i class="fas fa-camera"></i> 拍照</button>
+                    <img id="imgRight" src="" alt="右邊照片">
+                </div>
+                <div class="drop-zone" id="zoneRight" onclick="placeWord(this)"><i class="fas fa-hand-pointer"></i> 點擊放置詞語</div>
+            </div>
+        </div>
+        <div class="word-pool" id="wordPool">
+            <div class="word-pill" onclick="selectWord(this)">高</div><div class="word-pill" onclick="selectWord(this)">矮</div>
+            <div class="word-pill" onclick="selectWord(this)">新</div><div class="word-pill" onclick="selectWord(this)">舊</div>
+            <div class="word-pill" onclick="selectWord(this)">闊</div><div class="word-pill" onclick="selectWord(this)">窄</div>
+            <div class="word-pill" onclick="selectWord(this)">有設計感</div><div class="word-pill" onclick="selectWord(this)">懷舊的</div>
+        </div>
+        <hr style="margin: 40px 0; border-top: 3px dashed #ccc;">
+        <p><strong>第三部分 Part 3：完成造句</strong></p>
+        <div class="framework-box">
+            <div class="framework-text">左邊的建築物<span class="blank-line"></span> 很<span class="blank-line"></span> ，<br>但是右邊的建築物<span class="blank-line"></span> 很<span class="blank-line"></span> 。</div>
+        </div>
+        <div class="input-area-wrapper">
+            <textarea id="sentenceInput" rows="4" placeholder="請在這裡完成你的句子..."></textarea>
+            <button class="btn-dictate" id="btnDictate" onclick="startDictation('sentenceInput')"><i class="fas fa-microphone fa-2x"></i></button>
+        </div>
+        <button onclick="completeStep(2, 50)" style="background:var(--success); margin-top:40px; width: 100%;">
+            完成第二站 <span class="btn-en">Complete Station 2</span>
+        </button>
+    </div>
+
+    <!-- 第三站：茶餐廳 (創意設計) -->
+    <div class="card" id="st3">
+        <h2>📍 第三站：茶餐廳 (創意設計)</h2>
+        <p style="font-size: 18px; color: #555;">一起來探索茶餐廳餐牌上的文字秘密，並設計你的專屬特餐！</p>
+        
+        <!-- 第一部分：形音字解碼 -->
+        <h3>第一部分：形音字解碼</h3>
+        <p style="font-size: 18px;">很多中文字都是「形聲字」：<br>✅ <strong>形旁（部首）</strong>：表義 <br>✅ <strong>聲旁</strong>：表音</p>
+        <p style="font-size: 16px; color: var(--primary);">👉 點擊喇叭按鈕，聽聽看聲旁和漢字的讀音是否相似！</p>
+
+        <div class="table-responsive">
+            <table class="phonetic-table">
+                <thead>
+                    <tr><th>形旁（部首）</th><th>表義</th><th>聲旁 (表音)</th><th>組成的漢字</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="radical">米</td><td>與米、糧食或粉末有關</td><td><div class="sound-cell"><span>分 (fan1)</span><button class="btn-sm" onclick="speak('分')"><i class="fas fa-volume-up"></i></button></div></td><td><div class="sound-cell"><span class="target-word">粉 <span style="font-size:16px; color:#555">(fan2)</span></span><button class="btn-sm" onclick="speak('粉')"><i class="fas fa-volume-up"></i></button></div></td></tr>
+                    <tr><td class="radical">口</td><td>與口部動作、聲音或音譯有關</td><td><div class="sound-cell"><span>非 (fei1)</span><button class="btn-sm" onclick="speak('非')"><i class="fas fa-volume-up"></i></button></div></td><td><div class="sound-cell"><span class="target-word">啡 <span style="font-size:16px; color:#555">(fei1)</span></span><button class="btn-sm" onclick="speak('啡')"><i class="fas fa-volume-up"></i></button></div></td></tr>
+                    <tr><td class="radical">木</td><td>與植物、樹木有關</td><td><div class="sound-cell"><span>寧 (ning4)</span><button class="btn-sm" onclick="speak('寧')"><i class="fas fa-volume-up"></i></button></div></td><td><div class="sound-cell"><span class="target-word">檸 <span style="font-size:16px; color:#555">(ning4)</span></span><button class="btn-sm" onclick="speak('檸')"><i class="fas fa-volume-up"></i></button></div></td></tr>
+                    <tr><td class="radical">艸 <br><span style="font-size:18px">(艹)</span></td><td>與植物、草本有關</td><td><div class="sound-cell"><span>之 (zi1)</span><button class="btn-sm" onclick="speak('之')"><i class="fas fa-volume-up"></i></button></div></td><td><div class="sound-cell"><span class="target-word">芝 <span style="font-size:16px; color:#555">(zi1)</span></span><button class="btn-sm" onclick="speak('芝')"><i class="fas fa-volume-up"></i></button></div></td></tr>
+                    <tr><td class="radical">艸 <br><span style="font-size:18px">(艹)</span></td><td>與植物、菌類有關</td><td><div class="sound-cell"><span>姑 (gu1)</span><button class="btn-sm" onclick="speak('姑')"><i class="fas fa-volume-up"></i></button></div></td><td><div class="sound-cell"><span class="target-word">菇 <span style="font-size:16px; color:#555">(gu1)</span></span><button class="btn-sm" onclick="speak('菇')"><i class="fas fa-volume-up"></i></button></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 第二部分：字形字音字義連線 -->
+        <h3>第二部分：字形字音字義連線</h3>
+        <p style="font-size: 18px; color: #d32f2f; font-weight: bold;"><i class="fas fa-hand-pointer"></i> 互動任務：請用手指或滑鼠畫線配對！</p>
+        <div class="match-game-container" id="matchGameContainer">
+            <canvas id="linkCanvas"></canvas>
+            <div class="match-col" id="col1"></div>
+            <div class="match-col" id="col2"></div>
+            <div class="match-col" id="col3"></div>
+        </div>
+        <div id="matchSuccessMsg" style="display:none; text-align:center; color:var(--success); font-weight:bold; font-size:24px; margin-top:15px;">
+            <i class="fas fa-star"></i> 太棒了！全部連線正確！ <i class="fas fa-star"></i>
+        </div>
+
+        <!-- 第三部分：創意設計 - 我的學生特餐 -->
+        <h3>第三部分：我的學生特餐</h3>
+        <p style="font-size: 18px;">請運用剛才學到的字詞，發揮創意，組合出你的專屬茶餐廳特餐！<br>
+           <span style="color:var(--primary);"><i class="fas fa-lightbulb"></i> 提示：可以直接點擊下方按鈕，或將它們拖放到餐盤區。</span>
+        </p>
+
+        <div class="food-pool-area">
+            <div class="food-pool-title">🍲 1. 選擇主食區</div>
+            <div id="pool-mains">
+                <!-- 動態生成主食 -->
+            </div>
+        </div>
+
+        <div class="food-pool-area">
+            <div class="food-pool-title">🥓 2. 選擇配料區</div>
+            <div id="pool-toppings">
+                <!-- 動態生成配料 -->
+            </div>
+        </div>
+
+        <div class="food-pool-area">
+            <div class="food-pool-title">🔥 3. 選擇煮法 / 溫度</div>
+            <div id="pool-methods">
+                <!-- 動態生成煮法 -->
+            </div>
+        </div>
+
+        <div class="creation-area">
+            <!-- 餐盤區 -->
+            <div class="plate-zone" id="foodPlate" ondrop="dropFood(event)" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)">
+                <!-- 放置的食材圖案會出現在這 -->
+            </div>
+
+            <!-- 命名區 -->
+            <div class="name-builder-zone">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: #856404;">📝 你的特餐名稱：</p>
+                <p style="font-size: 16px; color: #666; margin-top: 0;">系統已為你自動組合，你也可以在前面加上「超級無敵」等形容詞！</p>
+                <input type="text" id="finalDishName" class="final-name-input" placeholder="請先選擇食材...">
+            </div>
+        </div>
+
+        <button onclick="generateSpecialCard()" style="background:#e83e8c; margin-top:30px; width: 100%; font-size: 26px; padding: 20px;">
+            <i class="fas fa-magic"></i> 生成特餐卡片 <span class="btn-en">Generate Menu Card</span>
+        </button>
+
+        <!-- 生成的特餐卡片 -->
+        <div class="special-meal-card" id="specialMealCard">
+            <div class="card-header" id="cardDishName">超級無敵炒牛扒蛋飯</div>
+            <div class="card-visual" id="cardVisual">
+                <!-- 視覺圖像 -->
+            </div>
+            <div class="card-price-tag">
+                HK$ <input type="number" id="mealPrice" value="45" min="1" max="999">
+            </div>
+            <p style="color: #888; font-size: 16px; margin-top: 15px;">(你可以點擊價錢進行修改喔！)</p>
+        </div>
+        
+        <button onclick="completeStep(3, 85)" style="background:var(--success); margin-top:40px; width: 100%;">
+            完成第三站 <span class="btn-en">Complete Station 3</span>
+        </button>
+    </div>
+
+    <!-- 第四站 -->
+    <div class="card" id="st4">
+        <h2>📍 第四站：自評 (Self-Assessment)</h2>
+        <table class="survey-table">
+            <tr>
+                <th>問題 Question</th>
+                <th>同意 / 中立 / 不同意</th>
+            </tr>
+            <script>
+                const qs = ["1. 對這個實地考察滿意嗎？", "2. 能有效學習部首嗎？", "3. 能有效學習字型結構嗎？", "4. 如果將來有類似活動，會參加嗎？"];
+                qs.forEach((q, i) => {
+                    document.write(`
+                        <tr>
+                            <td>${q}</td>
+                            <td>
+                                <button class="opt-btn" onclick="selectOpt(${i}, 1, this)">同意 Agree</button>
+                                <button class="opt-btn" onclick="selectOpt(${i}, 2, this)">中立 Neutral</button>
+                                <button class="opt-btn" onclick="selectOpt(${i}, 3, this)">不同意 Disagree</button>
+                            </td>
+                        </tr>
+                    `);
+                });
+            </script>
+        </table>
+        <button id="finalBtn" onclick="finishAll()" style="width:100%; background:var(--success); margin-top:20px; display:none; padding: 20px; font-size: 24px;">
+            <i class="fas fa-check-circle"></i> 提交自評並完成考察 <span class="btn-en">Submit & Finish</span>
+        </button>
+    </div>
+</div>
+
+<!-- 彈出視窗 -->
+<div id="vocabModal" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h2 id="modalTitle" class="modal-title">詞語</h2>
+        <div id="modalEn" class="modal-en">Meaning</div>
+        <button onclick="speakModalWord()" style="margin-bottom: 10px;"><i class="fas fa-volume-up"></i> 廣東話讀音</button>
+        <div id="hanziContainer"></div>
+        <button onclick="startQuiz()" style="background:#17a2b8;"><i class="fas fa-pen"></i> 重新練習筆順</button>
+    </div>
+</div>
+
+<script>
+    let progress = 0;
+    const bar = document.getElementById('progressBar');
+    function updateBar(val) { progress = val; bar.style.width = progress + '%'; bar.innerText = progress + '%'; }
+
+    function speak(text, event) {
+        if(event) { event.stopPropagation(); }
+        const msg = new SpeechSynthesisUtterance(text); msg.lang = 'zh-HK'; window.speechSynthesis.speak(msg);
+    }
+    function completeStep(step, val) { if(progress < val) { updateBar(val); speak("進度更新，目前百分之" + val); } }
+
+    /* === 第一站 === */
+    const photoCanvas = document.getElementById('photoCanvas'); const pCtx = photoCanvas.getContext('2d');
+    const predefinedHitboxes = [ { id: 'fish', text: '魚部的字', x: 0.15, y: 0.20, w: 0.20, h: 0.15, found: false }, { id: 'grass', text: '艸部的字', x: 0.45, y: 0.45, w: 0.20, h: 0.15, found: false }, { id: 'fire', text: '火部的字', x: 0.70, y: 0.70, w: 0.20, h: 0.15, found: false } ];
+    let activeHitboxes = []; let isPDrawing = false; let currentPStroke = [];
+
+    document.getElementById('upload').onchange = function(e) {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(event){
+            const img = new Image();
+            img.onload = function(){
+                const maxWidth = document.getElementById('canvas-wrapper').clientWidth; const ratio = img.width / img.height;
+                photoCanvas.width = maxWidth; photoCanvas.height = maxWidth / ratio; photoCanvas.style.display = "block";
+                pCtx.drawImage(img, 0, 0, photoCanvas.width, photoCanvas.height);
+                document.getElementById('st1-actions').style.display = "block"; document.getElementById('btnUpload').style.display = "none";
+                activeHitboxes = predefinedHitboxes.map(b => ({ ...b, px: b.x * photoCanvas.width, py: b.y * photoCanvas.height, pw: b.w * photoCanvas.width, ph: b.h * photoCanvas.height }));
+                speak("圖片已載入。請在圖片上圈出目標部首。");
+            }
+            img.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+    };
+
+    function getPPointerPos(e) {
+        const rect = photoCanvas.getBoundingClientRect(); const clientX = e.clientX || (e.touches && e.touches[0].clientX); const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        return { x: (clientX - rect.left) * (photoCanvas.width / rect.width), y: (clientY - rect.top) * (photoCanvas.height / rect.height) };
+    }
+    function startPDrawing(e) { e.preventDefault(); isPDrawing = true; currentPStroke = [getPPointerPos(e)]; pCtx.beginPath(); pCtx.moveTo(currentPStroke[0].x, currentPStroke[0].y); pCtx.strokeStyle="red"; pCtx.lineWidth=4; pCtx.lineCap="round"; }
+    function drawP(e) { if (!isPDrawing) return; e.preventDefault(); const pos = getPPointerPos(e); currentPStroke.push(pos); pCtx.lineTo(pos.x, pos.y); pCtx.stroke(); }
+    function stopPDrawing(e) {
+        if (!isPDrawing) return; e.preventDefault(); isPDrawing = false;
+        activeHitboxes.forEach(box => {
+            if (box.found) return; const pad = 20; const isHit = currentPStroke.some(p => p.x >= box.px - pad && p.x <= box.px + box.pw + pad && p.y >= box.py - pad && p.y <= box.py + box.ph + pad);
+            if (isHit) { box.found = true; pCtx.strokeStyle = "rgba(40, 167, 69, 0.8)"; pCtx.lineWidth = 6; pCtx.strokeRect(box.px - 5, box.py - 5, box.pw + 10, box.ph + 10); speak(`正確！找到了：${box.text}`); showAnswer1(); }
+        });
+    }
+    photoCanvas.addEventListener('mousedown', startPDrawing); photoCanvas.addEventListener('mousemove', drawP); photoCanvas.addEventListener('mouseup', stopPDrawing); photoCanvas.addEventListener('mouseleave', stopPDrawing);
+    photoCanvas.addEventListener('touchstart', startPDrawing, {passive: false}); photoCanvas.addEventListener('touchmove', drawP, {passive: false}); photoCanvas.addEventListener('touchend', stopPDrawing);
+    function showAnswer1() { document.getElementById('ansImg').style.display = "block"; document.getElementById('learningContent').style.display = "block"; }
+
+    /* === 第二站 === */
+    const vocabData = { "高": { en: "High" }, "矮": { en: "Short" }, "新": { en: "New" }, "舊": { en: "Old" }, "闊": { en: "Wide" }, "窄": { en: "Narrow" }, "有設計感": { en: "Stylish" }, "懷舊的": { en: "Nostalgic" } };
+    let currentWord = ""; let writers = []; 
+    function openModal(word) {
+        currentWord = word; document.getElementById("modalTitle").innerText = word; document.getElementById("modalEn").innerText = vocabData[word].en;
+        const container = document.getElementById("hanziContainer"); container.innerHTML = ""; writers = []; document.getElementById("vocabModal").style.display = "flex"; speak(word); 
+        for (let i = 0; i < word.length; i++) {
+            const div = document.createElement("div"); div.id = `writer-${i}`; div.style.background = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\"><line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"%23eee\" /><line x1=\"100\" y1=\"0\" x2=\"0\" y2=\"100\" stroke=\"%23eee\" /><line x1=\"50\" y1=\"0\" x2=\"50\" y2=\"100\" stroke=\"%23ccc\" stroke-dasharray=\"4\"/><line x1=\"0\" y1=\"50\" x2=\"100\" y2=\"50\" stroke=\"%23ccc\" stroke-dasharray=\"4\"/></svg>')";
+            div.style.width = "100px"; div.style.height = "100px"; div.style.border = "1px solid #aaa"; container.appendChild(div);
+            writers.push(HanziWriter.create(div.id, word[i], { width: 100, height: 100, padding: 5, showOutline: true, strokeAnimationSpeed: 1, delayBetweenStrokes: 150, radicalColor: '#17a2b8', strokeColor: '#0056b3' }));
+        }
+        setTimeout(() => { writers.forEach(w => w.quiz()); }, 500); 
+    }
+    function startQuiz() { writers.forEach(w => w.quiz()); }
+    function speakModalWord() { speak(currentWord); }
+    function closeModal(e) { if(e.target.id === 'vocabModal') document.getElementById("vocabModal").style.display = "none"; }
+    function loadPhoto(inputElement, imgId, btnId) {
+        const file = inputElement.files[0]; if(!file) return; const reader = new FileReader();
+        reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; document.getElementById(imgId).style.display = "block"; document.getElementById(btnId).style.display = "none"; }; reader.readAsDataURL(file);
+    }
+    let selectedWordPill = null;
+    function selectWord(pillElement) {
+        if(selectedWordPill) { selectedWordPill.classList.remove('selected'); }
+        if(selectedWordPill === pillElement) { selectedWordPill = null; document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('highlight')); return; }
+        selectedWordPill = pillElement; pillElement.classList.add('selected'); speak(pillElement.innerText); document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('highlight'));
+    }
+    function placeWord(zoneElement) {
+        if(!selectedWordPill) return; if(zoneElement.innerHTML.includes('點擊放置詞語')) { zoneElement.innerHTML = ''; }
+        zoneElement.appendChild(selectedWordPill); selectedWordPill.classList.remove('selected'); selectedWordPill = null;
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('highlight')); speak("已放置");
+    }
+    function startDictation(targetId) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) { alert("抱歉，瀏覽器不支援語音。"); return; }
+        const recognition = new SpeechRecognition(); recognition.lang = 'zh-HK'; recognition.maxAlternatives = 1;
+        const target = document.getElementById(targetId); const btn = document.getElementById('btnDictate'); const originalPlaceholder = target.placeholder;
+        btn.classList.add('listening'); target.placeholder = "正在聆聽...(Listening...)"; speak("請說話");
+        recognition.start();
+        recognition.onresult = function(event) {
+            let text = event.results[0][0].transcript;
+            if(target.value !== "" && !target.value.endsWith("，") && !target.value.endsWith("。")) target.value += "，" + text; else target.value += text;
+            speak("已輸入"); btn.classList.remove('listening'); target.placeholder = originalPlaceholder;
+        };
+        recognition.onerror = function() { btn.classList.remove('listening'); target.placeholder = originalPlaceholder; alert("未能識別，請再試一次。"); };
+        recognition.onend = function() { btn.classList.remove('listening'); target.placeholder = originalPlaceholder; }
+    }
+
+    /* === 第三站 第二部分：畫線連線 === */
+    const matchItemsData = [
+        { id: 'w1', zh: '麵', en: 'noodle', jp: 'min6', img: '🍜' }, { id: 'w2', zh: '粉', en: 'rice noodle', jp: 'fan2', img: '🍝' },
+        { id: 'w3', zh: '飯', en: 'rice', jp: 'faan6', img: '🍚' }, { id: 'w4', zh: '番茄', en: 'tomato', jp: 'faan1 ke2', img: '🍅' },
+        { id: 'w5', zh: '牛肉', en: 'beef', jp: 'ngau4 juk6', img: '🥩' }, { id: 'w6', zh: '奶茶', en: 'milk tea', jp: 'naai5 caa4', img: '🧋' },
+        { id: 'w7', zh: '檸檬', en: 'lemon', jp: 'ning4 mung1', img: '🍋' }
+    ];
+    const lCanvas = document.getElementById('linkCanvas'); const lCtx = lCanvas.getContext('2d'); const matchContainer = document.getElementById('matchGameContainer');
+    let links = []; let isLinking = false; let linkStartDot = null; let linkCurrentX = 0, linkCurrentY = 0;
+    function shuffleArray(array) { const newArr = [...array]; for (let i = newArr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [newArr[i], newArr[j]] = [newArr[j], newArr[i]]; } return newArr; }
+    
+    function initMatchGame() {
+        const c1 = shuffleArray(matchItemsData); const c2 = shuffleArray(matchItemsData); const c3 = shuffleArray(matchItemsData);
+        c1.forEach(i => document.getElementById('col1').innerHTML += `<div class="match-item col1" data-id="${i.id}" data-col="1">${i.zh}<div class="anchor-dot dot-right" data-id="${i.id}" data-col="1"></div></div>`);
+        c2.forEach(i => document.getElementById('col2').innerHTML += `<div class="match-item col2" data-id="${i.id}" data-col="2"><div class="anchor-dot dot-left" data-id="${i.id}" data-col="2"></div><div class="emoji-img">${i.img}</div><span>${i.en}</span><div class="anchor-dot dot-right" data-id="${i.id}" data-col="2"></div></div>`);
+        c3.forEach(i => document.getElementById('col3').innerHTML += `<div class="match-item col3" data-id="${i.id}" data-col="3"><div class="anchor-dot dot-left" data-id="${i.id}" data-col="3"></div><span>${i.jp}</span><button class="btn-sm" style="margin-top:5px; background:#1565c0;" onclick="speak('${i.zh}', event)"><i class="fas fa-volume-up"></i></button></div>`);
+        resizeCanvas();
+        matchContainer.addEventListener('mousedown', linkStart); matchContainer.addEventListener('touchstart', linkStart, { passive: false });
+        window.addEventListener('mousemove', linkMove); window.addEventListener('touchmove', linkMove, { passive: false });
+        window.addEventListener('mouseup', linkEnd); window.addEventListener('touchend', linkEnd);
+    }
+    function resizeCanvas() { const rect = matchContainer.getBoundingClientRect(); lCanvas.width = rect.width; lCanvas.height = rect.height; renderLinks(); }
+    window.addEventListener('resize', resizeCanvas);
+    function getDotCenterPos(dot) { const rect = dot.getBoundingClientRect(); const cRect = matchContainer.getBoundingClientRect(); return { x: rect.left + rect.width / 2 - cRect.left, y: rect.top + rect.height / 2 - cRect.top }; }
+    function renderLinks() {
+        lCtx.clearRect(0, 0, lCanvas.width, lCanvas.height); lCtx.lineWidth = 5; lCtx.lineCap = 'round';
+        links.forEach(l => { const s = getDotCenterPos(l.startElem); const e = getDotCenterPos(l.endElem); lCtx.strokeStyle = l.color; lCtx.beginPath(); lCtx.moveTo(s.x, s.y); lCtx.lineTo(e.x, e.y); lCtx.stroke(); });
+        if (isLinking && linkStartDot) { const s = getDotCenterPos(linkStartDot); lCtx.strokeStyle = '#0056b3'; lCtx.beginPath(); lCtx.moveTo(s.x, s.y); lCtx.lineTo(linkCurrentX, linkCurrentY); lCtx.stroke(); }
+    }
+    function linkStart(e) {
+        const t = e.target; if (t.classList.contains('anchor-dot')) {
+            isLinking = true; linkStartDot = t; linkStartDot.classList.add('active');
+            const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const cr = matchContainer.getBoundingClientRect(); linkCurrentX = cx - cr.left; linkCurrentY = cy - cr.top; renderLinks();
+            if(e.touches) e.preventDefault();
+        }
+    }
+    function linkMove(e) {
+        if (!isLinking) return;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const cr = matchContainer.getBoundingClientRect(); linkCurrentX = cx - cr.left; linkCurrentY = cy - cr.top; renderLinks();
+        if(e.touches) e.preventDefault();
+    }
+    function linkEnd(e) {
+        if (!isLinking) return; isLinking = false; linkStartDot.classList.remove('active');
+        const cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+        lCanvas.style.display = 'none'; let elemUnder = document.elementFromPoint(cx, cy); lCanvas.style.display = 'block';
+        if (elemUnder) {
+            const dropItem = elemUnder.closest('.match-item');
+            if (dropItem) {
+                const sCol = parseInt(linkStartDot.getAttribute('data-col')); const eCol = parseInt(dropItem.getAttribute('data-col'));
+                if (Math.abs(sCol - eCol) === 1 && linkStartDot.getAttribute('data-id') === dropItem.getAttribute('data-id')) {
+                    let endDot = sCol < eCol ? dropItem.querySelector('.dot-left') : dropItem.querySelector('.dot-right');
+                    if (endDot && !links.some(l => (l.startElem === linkStartDot && l.endElem === endDot) || (l.startElem === endDot && l.endElem === linkStartDot))) {
+                        links.push({ startElem: linkStartDot, endElem: endDot, color: '#28a745' }); speak("正確！"); dropItem.classList.add('matched'); linkStartDot.closest('.match-item').classList.add('matched');
+                        if (links.length === matchItemsData.length * 2) { document.getElementById('matchSuccessMsg').style.display = 'block'; setTimeout(() => speak("全部連線正確！"), 1000); }
+                    }
+                }
+            }
+        }
+        linkStartDot = null; renderLinks();
+    }
+    initMatchGame();
+
+
+    /* === 第三站 第三部分：創意設計 我的學生特餐 === */
+    const mealData = {
+        mains: [ {n:'飯', e:'🍚'}, {n:'麵', e:'🍜'}, {n:'通粉', e:'🥣'}, {n:'多士', e:'🍞'}, {n:'麵包', e:'🥖'} ],
+        toppings: [ {n:'火腿', e:'🥓'}, {n:'蛋', e:'🍳'}, {n:'牛扒', e:'🥩'}, {n:'雞扒', e:'🍗'}, {n:'番茄', e:'🍅'}, {n:'牛肉', e:'🐂'}, {n:'芝士', e:'🧀'}, {n:'腸仔', e:'🌭'} ],
+        methods: [ {n:'炒'}, {n:'湯'}, {n:'焗'}, {n:'鮮'}, {n:'凍'}, {n:'熱'} ]
+    };
+
+    let userMeal = { mains: [], toppings: [], methods: [] };
+
+    function initFoodPool() {
+        const renderItem = (cat, item) => {
+            const isMethod = cat === 'methods';
+            const extraClass = isMethod ? 'method' : '';
+            const emojiHtml = item.e ? `<span class="emoji">${item.e}</span>` : '';
+            return `<div class="food-item ${extraClass}" draggable="true" ondragstart="dragFood(event, '${cat}', '${item.n}', '${item.e || ''}')" onclick="addFoodToPlate('${cat}', '${item.n}', '${item.e || ''}')">
+                        ${emojiHtml}
+                        <span>${item.n}</span>
+                    </div>`;
+        };
+        document.getElementById('pool-mains').innerHTML = mealData.mains.map(i => renderItem('mains', i)).join('');
+        document.getElementById('pool-toppings').innerHTML = mealData.toppings.map(i => renderItem('toppings', i)).join('');
+        document.getElementById('pool-methods').innerHTML = mealData.methods.map(i => renderItem('methods', i)).join('');
+    }
+
+    // 拖放與點擊通用邏輯
+    function addFoodToPlate(category, name, emoji) {
+        userMeal[category].push({ name, emoji });
+        speak(name);
+        renderPlate();
+    }
+
+    function removeFoodFromPlate(category, index) {
+        userMeal[category].splice(index, 1);
+        renderPlate();
+    }
+
+    // Drag & Drop Desktop Events
+    function dragFood(ev, cat, name, emoji) {
+        ev.dataTransfer.setData("cat", cat); ev.dataTransfer.setData("name", name); ev.dataTransfer.setData("emoji", emoji);
+    }
+    function allowDrop(ev) { ev.preventDefault(); document.getElementById('foodPlate').classList.add('dragover'); }
+    function leaveDrop(ev) { document.getElementById('foodPlate').classList.remove('dragover'); }
+    function dropFood(ev) {
+        ev.preventDefault();
+        document.getElementById('foodPlate').classList.remove('dragover');
+        const cat = ev.dataTransfer.getData("cat"); const name = ev.dataTransfer.getData("name"); const emoji = ev.dataTransfer.getData("emoji");
+        if(cat && name) { addFoodToPlate(cat, name, emoji); }
+    }
+
+    // 重新渲染餐盤與自動命名
+    function renderPlate() {
+        const plate = document.getElementById('foodPlate');
+        let html = '';
+        const allItems = [ ...userMeal.mains.map((i, idx)=>({cat:'mains', idx, ...i})), ...userMeal.toppings.map((i, idx)=>({cat:'toppings', idx, ...i})) ];
+        
+        allItems.forEach(item => {
+            if(item.emoji) {
+                html += `<div class="plate-item">${item.emoji}<div class="remove-btn" onclick="removeFoodFromPlate('${item.cat}', ${item.idx})">x</div></div>`;
+            }
+        });
+        
+        plate.innerHTML = html;
+        if(html !== '') { plate.classList.add('has-items'); } else { plate.classList.remove('has-items'); }
+
+        // 自動組合命名: [煮法] + [配料] + [主食]
+        const methodStr = userMeal.methods.map(i => i.name).join('');
+        const toppingStr = userMeal.toppings.map(i => i.name).join('');
+        const mainStr = userMeal.mains.map(i => i.name).join('');
+        
+        const autoName = methodStr + toppingStr + mainStr;
+        
+        // 只有當學生沒有大幅修改或者目前的字串是空的時候，才覆蓋
+        const inputElem = document.getElementById('finalDishName');
+        inputElem.value = autoName; 
+    }
+
+    // 生成最終卡片
+    function generateSpecialCard() {
+        const finalName = document.getElementById('finalDishName').value;
+        if(!finalName) { speak("請先選擇食材或輸入名稱！"); alert("請先選擇食材組合你的特餐！"); return; }
+        
+        speak("你的特餐完成了！" + finalName);
+        
+        const cardNameElem = document.getElementById('cardDishName');
+        const cardVisualElem = document.getElementById('cardVisual');
+        const specialCard = document.getElementById('specialMealCard');
+
+        cardNameElem.innerText = finalName;
+        
+        // 收集所有的 Emoji 作為視覺圖案
+        let visuals = [];
+        userMeal.mains.forEach(i => visuals.push(i.emoji));
+        userMeal.toppings.forEach(i => visuals.push(i.emoji));
+        
+        if(visuals.length === 0) { visuals.push('🍽️'); } // 預設空盤
+        cardVisualElem.innerHTML = visuals.join(' ');
+        
+        specialCard.style.display = 'block';
+        
+        // 加上一點特效
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    }
+
+    initFoodPool();
+
+    /* === 第四站：自評 === */
+    const surveyAnswers = {}; const totalQuestions = 4; 
+    function selectOpt(qIndex, val, btn) {
+        const row = btn.parentElement; row.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected'); surveyAnswers[qIndex] = val;
+        if(Object.keys(surveyAnswers).length === totalQuestions) { document.getElementById('finalBtn').style.display = 'block'; }
+    }
+    function finishAll() {
+        completeStep(4, 100); speak("恭喜你！完成了所有實地考察任務！");
+        var duration = 4 * 1000; var animationEnd = Date.now() + duration; var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+        function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now(); if (timeLeft <= 0) return clearInterval(interval);
+            var particleCount = 50 * (timeLeft / duration);
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 250);
+        const finalBtn = document.getElementById('finalBtn'); finalBtn.innerHTML = "🎉 考察圓滿結束！"; finalBtn.style.cursor = "default"; finalBtn.onclick = null;
+    }
+
+</script>
+</body>
+</html>
